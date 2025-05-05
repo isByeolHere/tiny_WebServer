@@ -1000,29 +1000,35 @@ int open_listenfd(char *port)
     int listenfd, rc, optval=1;
 
     /* Get a list of potential server addresses */
+
+    // 1. 힌트 구조체를 0으로 초기화하고, 어떤 타입의 주소 정보를 원하는지 설정
     memset(&hints, 0, sizeof(struct addrinfo));
-    hints.ai_socktype = SOCK_STREAM;             /* Accept connections */
-    hints.ai_flags = AI_PASSIVE | AI_ADDRCONFIG; /* ... on any IP address */
-    hints.ai_flags |= AI_NUMERICSERV;            /* ... using port number */
+    hints.ai_socktype = SOCK_STREAM;             // TCP 사용
+    hints.ai_flags = AI_PASSIVE | AI_ADDRCONFIG; // 수신용 서버 소켓용 IP를 얻겠다
+    hints.ai_flags |= AI_NUMERICSERV;            // 서비스 이름 대신 포트 번호만 사용
+
+    // 2. getaddrinfo()를 호출해서, 주어진 포트를 사용할 수 있는 IP/포트 조합 리스트를 얻음
     if ((rc = getaddrinfo(NULL, port, &hints, &listp)) != 0) {
         fprintf(stderr, "getaddrinfo failed (port %s): %s\n", port, gai_strerror(rc));
-        return -2;
+        return -2; // 주소 검색 실패
     }
 
-    /* Walk the list for one that we can bind to */
+    // 3. 가능한 주소 리스트를 순회하며, 바인딩 가능한 주소를 찾는다
     for (p = listp; p; p = p->ai_next) {
         /* Create a socket descriptor */
+        // 3-1. 소켓을 생성
         if ((listenfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) < 0) 
             continue;  /* Socket failed, try the next */
 
-        /* Eliminates "Address already in use" error from bind */
-        setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR,    //line:netp:csapp:setsockopt
-                   (const void *)&optval , sizeof(int));
+        // 3-2. bind에서 "Address already in use" 오류를 피하기 위해 소켓 옵션 설정
+        setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, (const void *)&optval, sizeof(int));
 
-        /* Bind the descriptor to the address */
+        // 3-3. 소켓을 해당 주소에 바인딩 (ip + port 결합)
         if (bind(listenfd, p->ai_addr, p->ai_addrlen) == 0)
-            break; /* Success */
-        if (close(listenfd) < 0) { /* Bind failed, try the next */
+            break;  // 바인딩 성공했으면 반복문 탈출
+
+        // 3-4. 바인딩 실패 시, 현재 소켓 닫고 다음 주소 시도
+        if (close(listenfd) < 0) {
             fprintf(stderr, "open_listenfd close failed: %s\n", strerror(errno));
             return -1;
         }
