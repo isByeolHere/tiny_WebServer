@@ -49,6 +49,7 @@ typedef struct {
     char *rio_bufptr;          /* Next unread byte in internal buf */
     char rio_buf[RIO_BUFSIZE]; /* Internal buffer */
 } rio_t;
+
 /* $end rio_t */
 
 /* External variables */
